@@ -5,6 +5,8 @@
 [![Visual Studio Code](https://img.shields.io/badge/VS%20Code-Ready-blue.svg)](https://code.visualstudio.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+![Luminous Demo](images/demo.gif)
+
 ## 🌟 Features
 
 ### 🤖 AI-Powered Code Analysis
@@ -12,11 +14,15 @@
 - Creates intuitive section breakdowns
 - Understands code context and relationships
 
+![Code Analysis](images/code-analysis.png)
+
 ### 🎨 Beautiful Visual Experience
 - Smooth highlight animations
 - Elegant fade-out effects
 - Modern, clean interface design
 - Dark and light theme support
+
+![Visual Experience](images/visual-experience.png)
 
 ### 🎯 Smart Navigation
 - Jump to any code section instantly
@@ -28,12 +34,50 @@
 - Create custom color schemes
 - Adjustable highlight animations
 
-## 🚀 Getting Started
+![Color Themes](images/color-themes.png)
 
-1. Install the Luminous extension from VS Code marketplace
-2. Open any code file
-3. Click the Luminous icon in the sidebar
-4. Start exploring your code with AI-powered insights!
+## 🚀 Installation
+
+### Development Mode Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/luminous.git
+cd luminous
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Open in VS Code:
+```bash
+code .
+```
+
+4. Launch the extension:
+   - Press `F5` to start debugging
+   - OR select `Run and Debug` from the sidebar (Ctrl+Shift+D)
+   - Select `Extension` from the dropdown
+   - Click the green play button or press `F5`
+
+A new VS Code window will open with the extension loaded.
+
+### Alternative Installation Methods
+
+#### Using VSIX File
+1. Build the VSIX package:
+```bash
+npm install -g @vscode/vsce
+vsce package
+```
+2. Install the generated .vsix file:
+   - Open VS Code
+   - Go to Extensions (Ctrl+Shift+X)
+   - Click the '...' menu (top-right)
+   - Select 'Install from VSIX...'
+   - Choose the generated .vsix file
 
 ## ⚙️ Configuration
 
@@ -45,6 +89,8 @@ Customize your experience through the settings menu:
   - Purple
   - Orange
   - Custom RGBA colors
+
+![Settings Menu](images/settings.png)
 
 ## 💡 Usage Tips
 
@@ -58,7 +104,6 @@ Nested code blocks are automatically detected and can be navigated separately fo
 Click the ⚙️ icon to access quick settings and personalize your Luminous experience.
 
 ## 🛠️ Technical Details
-
 - Uses the Groq LLM API for intelligent code analysis
 - Built with performance and responsiveness in mind
 - Lightweight and optimized for VS Code
