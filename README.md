@@ -1,65 +1,88 @@
-# luminous README
+# ✨ Luminous - Smart Code Navigation & Analysis 🚀
 
-This is the README for your extension "luminous". After writing up a brief description, we recommend including the following sections.
+> Navigate your codebase with AI-powered insights and beautiful animations! 🎯
 
-## Features
+[![Visual Studio Code](https://img.shields.io/badge/VS%20Code-Ready-blue.svg)](https://code.visualstudio.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+## 🌟 Features
 
-For example if there is an image subfolder under your extension project workspace:
+### 🤖 AI-Powered Code Analysis
+- Automatically analyzes your code structure
+- Creates intuitive section breakdowns
+- Understands code context and relationships
 
-\!\[feature X\]\(images/feature-x.png\)
+### 🎨 Beautiful Visual Experience
+- Smooth highlight animations
+- Elegant fade-out effects
+- Modern, clean interface design
+- Dark and light theme support
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+### 🎯 Smart Navigation
+- Jump to any code section instantly
+- Intelligent subsection detection
+- Visual breadcrumbs for easy orientation
 
-## Requirements
+### 🎨 Customizable Highlights
+- Choose from preset color themes
+- Create custom color schemes
+- Adjustable highlight animations
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+## 🚀 Getting Started
 
-## Extension Settings
+1. Install the Luminous extension from VS Code marketplace
+2. Open any code file
+3. Click the Luminous icon in the sidebar
+4. Start exploring your code with AI-powered insights!
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+## ⚙️ Configuration
 
-For example:
+Customize your experience through the settings menu:
 
-This extension contributes the following settings:
+- 🎨 Highlight Colors
+  - Blue (Default)
+  - Green
+  - Purple
+  - Orange
+  - Custom RGBA colors
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+## 💡 Usage Tips
 
-## Known Issues
+### Quick Navigation
+Click any section in the sidebar to instantly jump to that part of your code. The intelligent highlighting system will guide your eyes to the right place!
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+### Subsections
+Nested code blocks are automatically detected and can be navigated separately for precise code exploration.
 
-## Release Notes
+### Settings Customization
+Click the ⚙️ icon to access quick settings and personalize your Luminous experience.
 
-Users appreciate release notes as you update your extension.
+## 🛠️ Technical Details
 
-### 1.0.0
+- Uses the Groq LLM API for intelligent code analysis
+- Built with performance and responsiveness in mind
+- Lightweight and optimized for VS Code
 
-Initial release of ...
+## 🤝 Contributing
 
-### 1.0.1
+Have ideas to make Luminous even better? Contributions are welcome!
 
-Fixed issue #.
+1. Fork the repository
+2. Create your feature branch
+3. Submit a pull request
 
-### 1.1.0
+## 📝 License
 
-Added features X, Y, and Z.
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🌟 Support
+
+If you like Luminous, please consider:
+- ⭐ Starring the repository
+- 🐛 Reporting any bugs you find
+- 💡 Suggesting new features
+- 📣 Spreading the word!
 
 ---
 
-## Working with Markdown
-
-You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+Made with ❤️ for developers who love clean, organized code.
