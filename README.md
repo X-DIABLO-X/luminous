@@ -14,7 +14,7 @@
 - Creates intuitive section breakdowns
 - Understands code context and relationships
 
-![Code Analysis](images/code-analysis.png)
+![Code Analysis](images/img1.png)
 
 ### 🎨 Beautiful Visual Experience
 - Smooth highlight animations
@@ -22,7 +22,7 @@
 - Modern, clean interface design
 - Dark and light theme support
 
-![Visual Experience](images/visual-experience.png)
+![Visual Experience](images/img2.png)
 
 ### 🎯 Smart Navigation
 - Jump to any code section instantly
@@ -34,7 +34,7 @@
 - Create custom color schemes
 - Adjustable highlight animations
 
-![Color Themes](images/color-themes.png)
+![Color Themes](images/img4.png)
 
 ## 🚀 Installation
 
@@ -90,7 +90,7 @@ Customize your experience through the settings menu:
   - Orange
   - Custom RGBA colors
 
-![Settings Menu](images/settings.png)
+![Settings Menu](images/img3.png)
 
 ## 💡 Usage Tips
 
