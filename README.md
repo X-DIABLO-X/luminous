@@ -90,7 +90,7 @@ Customize your experience through the settings menu:
   - Orange
   - Custom RGBA colors
 
-![Settings Menu](images/img3.png)
+![Settings Menu](images/img5.png)
 
 ## 💡 Usage Tips
 
