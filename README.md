@@ -5,6 +5,8 @@
 [![Visual Studio Code](https://img.shields.io/badge/VS%20Code-Ready-blue.svg)](https://code.visualstudio.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+[Install Luminous on VS Code](vscode:extension/DIABLO.luminous)
+
 ![Luminous Demo](images/demo.gif)
 
 ## 🌟 Features
