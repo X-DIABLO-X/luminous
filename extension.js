@@ -13,6 +13,13 @@ let currentSettings = {
     sectionColor: 'var(--vscode-button-background)'
 };
 
+// Cache for analysis results across all files (key: document URI)
+const analysisCache = new Map();
+// To debounce updates on document changes.
+const analysisDebounceTimers = new Map();
+// Threshold for minimum changed characters before sending a new query.
+const CHANGE_THRESHOLD = 100;
+
 function createDecorationTypes(color) {
     return {
         initial: vscode.window.createTextEditorDecorationType({
@@ -45,16 +52,19 @@ function createDecorationTypes(color) {
 let highlightDecorationTypes = createDecorationTypes(currentSettings.highlightColor);
 
 function activate(context) {
+    // Register settings command.
     let settingsCommand = vscode.commands.registerCommand('luminous.settings', () => {
         showSettingsMenu();
     });
     context.subscriptions.push(settingsCommand);
 
+    // Only register the webview (sidebar) provider so that heavy work is deferred.
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider('luminous.view', {
             resolveWebviewView(webviewView) {
                 currentPanel = webviewView;
                 webviewView.webview.options = { enableScripts: true };
+                // Do a full analysis once the sidebar is visible.
                 updateWebviewContent(webviewView, true);
 
                 webviewView.webview.onDidReceiveMessage(
@@ -63,8 +73,23 @@ function activate(context) {
                     context.subscriptions
                 );
 
-                vscode.window.onDidChangeActiveTextEditor(() => updateWebviewContent(webviewView, true));
-                vscode.workspace.onDidChangeTextDocument(() => updateWebviewContent(webviewView, true));
+                // Listen for active editor changes.
+                const activeEditorListener = vscode.window.onDidChangeActiveTextEditor(() => {
+                    updateWebviewContent(webviewView, true);
+                });
+                // On document changes, schedule a partial re-analysis.
+                const textDocChangeListener = vscode.workspace.onDidChangeTextDocument((e) => {
+                    const docUri = e.document.uri.toString();
+                    // Schedule a debounce update for this document.
+                    if (analysisDebounceTimers.has(docUri)) {
+                        clearTimeout(analysisDebounceTimers.get(docUri));
+                    }
+                    analysisDebounceTimers.set(docUri, setTimeout(() => {
+                        schedulePartialUpdate(e.document);
+                        analysisDebounceTimers.delete(docUri);
+                    }, 1000)); // wait 1 second after last change
+                });
+                context.subscriptions.push(activeEditorListener, textDocChangeListener);
             }
         })
     );
@@ -96,7 +121,6 @@ async function showSettingsMenu() {
     const selectedColor = await vscode.window.showQuickPick(colorOptions, {
         placeHolder: 'Select highlight color'
     });
-
     if (!selectedColor) return;
 
     let newColor;
@@ -119,36 +143,132 @@ async function showSettingsMenu() {
 
     currentSettings.highlightColor = newColor;
     highlightDecorationTypes = createDecorationTypes(newColor);
-    updateWebviewContent(currentPanel);
+    if (currentPanel) {
+        updateWebviewContent(currentPanel);
+    }
 }
 
+// For full analysis (when no cache exists) or when first opening the sidebar.
 async function updateWebviewContent(webviewView, showLoading = false) {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
         webviewView.webview.html = getWebviewContent({ title: '', sections: [] }, showLoading);
         return;
     }
-
     if (showLoading) {
         webviewView.webview.html = getWebviewContent({ title: '', sections: [] }, true);
     }
-
     const code = editor.document.getText();
+    const docUri = editor.document.uri.toString();
+
+    // If a full analysis was previously done and code unchanged, reuse it.
+    if (analysisCache.has(docUri)) {
+        const cached = analysisCache.get(docUri);
+        if (cached.code === code && cached.analysis) {
+            webviewView.webview.html = getWebviewContent(cached.analysis, false);
+            return;
+        }
+    }
+    // Otherwise, run a full analysis.
     const analysis = await analyzeCode(code);
+    analysisCache.set(docUri, { code, analysis });
     console.log(analysis);
     webviewView.webview.html = getWebviewContent(analysis, false);
 }
 
-async function analyzeCode(code) {
-    if (!code) return { title: '', sections: [] };
+/* 
+   schedulePartialUpdate() is called after a debounce when a document changes.
+   It computes the differences between the new code and the cached version.
+   If the change exceeds a threshold, it queries only the changed blocks,
+   merges the new analysis with the cached analysis, updates the cache and then updates the sidebar.
+*/
+async function schedulePartialUpdate(document) {
+    const docUri = document.uri.toString();
+    const newCode = document.getText();
+    let cached = analysisCache.get(docUri);
+    // If no cached analysis exists, run a full analysis.
+    if (!cached) {
+        const fullAnalysis = await analyzeCode(newCode);
+        analysisCache.set(docUri, { code: newCode, analysis: fullAnalysis });
+        if (currentPanel) {
+            currentPanel.webview.html = getWebviewContent(fullAnalysis, false);
+        }
+        return;
+    }
+    const oldCode = cached.code;
+    // If the overall difference is less than the threshold, do nothing.
+    if (Math.abs(newCode.length - oldCode.length) < CHANGE_THRESHOLD) {
+        return;
+    }
+    const oldLines = oldCode.split('\n');
+    const newLines = newCode.split('\n');
+    // Compute changed blocks (line ranges in newLines).
+    const changedBlocks = computeChangedBlocks(oldLines, newLines);
+    if (changedBlocks.length === 0) {
+        // No block found; update cache code and exit.
+        cached.code = newCode;
+        return;
+    }
+    // For each changed block, run analysis on just that block.
+    let newSections = [];
+    for (let block of changedBlocks) {
+        const blockLines = newLines.slice(block.start, block.end + 1);
+        // Use the block's starting line number as offset.
+        const blockAnalysis = await analyzeCodeBlock(blockLines, block.start);
+        if (blockAnalysis.sections) {
+            newSections = newSections.concat(blockAnalysis.sections);
+        }
+    }
+    // Merge new sections with the cached analysis.
+    const mergedSections = mergeSections(cached.analysis.sections, newSections, changedBlocks);
+    // Update the cache.
+    const newAnalysis = { title: cached.analysis.title, sections: mergedSections };
+    analysisCache.set(docUri, { code: newCode, analysis: newAnalysis });
+    // Now update the sidebar with the new merged analysis.
+    if (currentPanel) {
+        currentPanel.webview.html = getWebviewContent(newAnalysis, false);
+    }
+}
 
-    const lines = code.split('\n');
-    const BATCH_SIZE = 100; // adjust this value as needed for optimal batching
+/*
+  computeChangedBlocks compares oldLines and newLines line-by-line and returns
+  an array of blocks where changes occurred. Each block is an object {start, end} (0-indexed).
+*/
+function computeChangedBlocks(oldLines, newLines) {
+    const blocks = [];
+    const maxLen = Math.max(oldLines.length, newLines.length);
+    let blockStart = null;
+    for (let i = 0; i < maxLen; i++) {
+        const oldLine = oldLines[i] || "";
+        const newLine = newLines[i] || "";
+        if (oldLine !== newLine) {
+            if (blockStart === null) {
+                blockStart = i;
+            }
+        } else {
+            if (blockStart !== null) {
+                blocks.push({ start: blockStart, end: i - 1 });
+                blockStart = null;
+            }
+        }
+    }
+    if (blockStart !== null) {
+        blocks.push({ start: blockStart, end: maxLen - 1 });
+    }
+    return blocks;
+}
+
+/*
+  analyzeCodeBlock() is similar to analyzeCode(), but it processes only a block
+  of lines. The offset is added so that the line numbers in the results reflect the full file.
+*/
+async function analyzeCodeBlock(blockLines, offset) {
+    if (!blockLines.length) return { title: '', sections: [] };
+    const BATCH_SIZE = 100; // can be adjusted
     let aggregatedSections = [];
-    let overallTitle = "Code Analysis";
+    let overallTitle = "Code Analysis (Partial)";
     let lastError = null;
 
-    // Models to try for each batch
     const models = [
         'llama-3.2-90b-vision-preview',
         'llama-3.3-70b-specdec',
@@ -165,7 +285,77 @@ async function analyzeCode(code) {
         'llama-3.2-1b-preview'
     ];
 
-    // Process the code in batches
+    // Process the block in batches.
+    for (let i = 0; i < blockLines.length; i += BATCH_SIZE) {
+        let batchLines = blockLines.slice(i, i + BATCH_SIZE);
+        let batchStart = offset + i;
+        let batchEnd = offset + Math.min(i + BATCH_SIZE, blockLines.length) - 1;
+        let numberedBatch = batchLines.map((line, idx) => `${batchStart + idx + 1}: ${line}`).join('\n');
+        let prompt = `Analyze this code snippet from lines ${batchStart + 1} to ${batchEnd + 1} and return JSON with format {"title": string, "sections": [{title: string, lineNumber: number, endLine: number, subsections: [{title: string, lineNumber: number, endLine: number}]}]}. The title should describe the main purpose of this code snippet:\n\n${numberedBatch}\n\nReturn only the JSON result. Don't include the code in backticks or any extra text.`;
+
+        let batchAnalysis = null;
+        for (let model of models) {
+            try {
+                const chatCompletion = await groq.chat.completions.create({
+                    messages: [{ role: "user", content: prompt }],
+                    model: model,
+                    temperature: 0.1,
+                    max_tokens: 4096,
+                    top_p: 1,
+                    stream: false,
+                    stop: null
+                });
+                let content = chatCompletion.choices[0].message.content;
+                console.log(`(Partial) Model ${model} succeeded for batch ${batchStart + 1}-${batchEnd + 1}.`);
+                batchAnalysis = JSON.parse(content);
+                break;
+            } catch (error) {
+                console.log(`(Partial) Model ${model} failed with error: ${error.message} for batch ${batchStart + 1}-${batchEnd + 1}.`);
+                lastError = error;
+            }
+        }
+        if (batchAnalysis && batchAnalysis.sections) {
+            aggregatedSections = aggregatedSections.concat(batchAnalysis.sections);
+        } else {
+            console.log(`(Partial) Analysis failed for batch ${batchStart + 1}-${batchEnd + 1}.`);
+        }
+    }
+
+    if (aggregatedSections.length === 0 && lastError) {
+        vscode.window.showErrorMessage(`Partial analysis error: ${lastError.message}`);
+    }
+    return { title: overallTitle, sections: aggregatedSections };
+}
+
+/*
+  analyzeCode() processes the full code (for initial load).
+*/
+async function analyzeCode(code) {
+    if (!code) return { title: '', sections: [] };
+
+    const lines = code.split('\n');
+    const BATCH_SIZE = 100; // adjust as needed
+    let aggregatedSections = [];
+    let overallTitle = "Code Analysis";
+    let lastError = null;
+
+    const models = [
+        'llama-3.2-90b-vision-preview',
+        'llama-3.3-70b-specdec',
+        'llama-3.3-70b-versatile',
+        'llama3-70b-8192',
+        'mixtral-8x7b-32768', 
+        'qwen-2.5-32b',
+        'llama-3.2-11b-vision-preview', 
+        'gemma2-9b-it',         
+        'llama-3.1-8b-instant',
+        'llama-guard-3-8b',            
+        'llama3-8b-8192',    
+        'llama-3.2-3b-preview',      
+        'llama-3.2-1b-preview'
+    ];
+
+    // Process the code in batches.
     for (let i = 0; i < lines.length; i += BATCH_SIZE) {
         let batchLines = lines.slice(i, i + BATCH_SIZE);
         let batchStart = i;
@@ -206,6 +396,28 @@ async function analyzeCode(code) {
     }
 
     return { title: overallTitle, sections: aggregatedSections };
+}
+
+/*
+  mergeSections() takes the previously cached sections and the newly analyzed sections (from the changed blocks)
+  along with the changed blocks (array of {start, end}) and replaces any sections whose line numbers fall inside any changed block.
+  Finally, it sorts all sections by their starting line number.
+*/
+function mergeSections(oldSections, newSections, changedBlocks) {
+    // Filter out any old sections that intersect any changed block.
+    const filtered = oldSections.filter(section => {
+        for (let block of changedBlocks) {
+            // If the section's range overlaps the block range, remove it.
+            if (section.lineNumber - 1 <= block.end && section.endLine - 1 >= block.start) {
+                return false;
+            }
+        }
+        return true;
+    });
+    const merged = filtered.concat(newSections);
+    // Sort by starting line number.
+    merged.sort((a, b) => a.lineNumber - b.lineNumber);
+    return merged;
 }
 
 function highlightAndJumpToSection(startLine, endLine) {
@@ -425,7 +637,7 @@ function getWebviewContent(analysis, isLoading) {
       isLoading 
       ? '<div class="loading-spinner"><div class="spinner"></div></div>' 
       : analysis.sections.length > 0 
-        ? analysis.sections.map((section, sIndex) => `
+        ? analysis.sections.map((section) => `
           <div class="section">
             <div class="section-header" onclick="toggleSection(event)">
               <button class="title-btn" onclick="jumpToLine(${section.lineNumber}, ${section.endLine}); event.stopPropagation();">
@@ -441,9 +653,8 @@ function getWebviewContent(analysis, isLoading) {
                     <button class="sub-title-btn" onclick="jumpToSubsection(${subsection.lineNumber}, ${subsection.endLine})">
                       ${subsection.title}
                     </button>
-                    <!-- If you need toggle for further nested content, add similar button and container -->
                   </div>
-                `).join('')
+                `).join('') 
                 : ''
               }
             </div>
@@ -478,7 +689,6 @@ function getWebviewContent(analysis, isLoading) {
     }
 
     function toggleSection(event) {
-      // Prevent the event if the button inside the header is clicked
       event.stopPropagation();
       const header = event.currentTarget;
       const sectionElement = header.parentElement;
